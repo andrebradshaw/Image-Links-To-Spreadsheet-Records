@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+
+    <div>
+      <h2 style="text-align: center;"> Convert image links and extract contact information</h2>
+      <!-- <p style="text-align: center;">Upload a file, wait for the processing, then download the text file. Text content is editable prior to downloading.</p> -->
+    </div>
+    <div style="display: grid; grid-template-columns: 10% 77% 10%; grid-gap: 1%;">
+      <div id="btn_container" style="grid-area: 1/2; width: 100%; display: grid; grid-template-columns: 20% 20% 57%; grid-gap: 1%;">
+        <div id="upload_btn" style="grid-area: 1/1; background: #132e3b; color: #fff; border: 1.5px solid #132e3b; border-radius: 0.4em; padding: 12px; text-align: center; cursor: pointer" onclick="runProgram()">Start Program</div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 10% 77% 10%; grid-gap: 1%;">
+      <div style="grid-area: 1/2; padding: 20px;" id="textbody"></div>
+    </div>
+  </body>
+</html>
+
+<script>
+  async function runProgram(){  
+    const cn = (o, s) => o?.getElementsByClassName(s);
+    const tn = (o, s) => o?.getElementsByTagName(s);
+    const gi = (o, s) => o?.getElementById(s);
+    const rando = (n) => Math.round(Math.random() * n);
+    const unq = (arr) => arr.filter((e, p, a) => a.indexOf(e) == p);
+    const delay = (ms) => new Promise(res => setTimeout(res, ms));
+    const ele = (t) => document.createElement(t);
+    const attr = (o, k, v) => {
+        try{o.setAttribute(k, v);}
+        catch(err){
+        console.log([err,o,k,v]);
+        }
+    };
+    const a = (l, r) => r.forEach(a => attr(l, a[0], a[1]));
+    function topZIndexer(){
+        let n = new Date().getTime() / 1000000;
+        let r = (n - Math.floor(n)) * 100000;
+        return (Math.ceil(n+r) * 10);
+    }
+    function inlineStyler(elm,css){
+        Object.entries(JSON.parse(
+        css.replace(/(?<=:)\s*(\b|\B)(?=.+?;)/g,'"')
+        .replace(/(?<=:\s*.+?);/g,'",')
+        .replace(/[a-zA-Z-]+(?=:)/g, k=> k.replace(/^\b/,'"').replace(/\b$/,'"'))
+        .replace(/\s*,\s*\}/g,'}')
+        )).forEach(kv=> { elm.style[kv[0]] = kv[1]});
+    }
+    function dragElement() {
+        var el = gi(document,'url_upload_card_id'); //this.parentElement.parentElement;//; //
+        var pos1 = 0,    pos2 = 0,    pos3 = 0,    pos4 = 0;
+        if (document.getElementById(this.id)) document.getElementById(this.id).onmousedown = dragMouseDown;
+        else this.onmousedown = dragMouseDown;
+        function dragMouseDown(e) {
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+        function elementDrag(e) {
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            let boundaryX = window.innerWidth < e.clientX || e.clientX < 0;
+            let boundaryY = window.innerHeight < e.clientY || e.clientY < 0;
+            inlineStyler(el,`{top: ${(boundaryY ? el.getBoundingClientRect().top : el.offsetTop - pos2)}px; left: ${(boundaryX ? el.getBoundingClientRect().left : el.offsetLeft - pos1)}px; z-index: ${topZIndexer()}; opacity: 0.85; transform: opacity 700ms;}`);
+        }
+        function closeDragElement(e) {
+            document.onmouseup = null;
+            document.onmousemove = null;
+            el.style.opacity = "1";
+        }
+    }
+    function createDownloadHTML() {
+        if(gi(document,'downloading_notifier')) gi(document,'downloading_notifier').outerHTML = '';
+        const body_width = document.body.getBoundingClientRect().width;
+        const download_bar_width = body_width * 0.9;
+        let cont = ele('div');
+        a(cont, [['id', 'downloading_notifier'], ['style', `position: fixed; top: 100px; left: ${((body_width - download_bar_width)/2)}px; width: ${download_bar_width}px; z-index: ${topZIndexer()}; background: #1c1c1c; border: 2px solid #1c1c1c; border-radius: 0.2em;`]]);
+        document.body.appendChild(cont);
+        let perc = ele('div');
+        a(perc, [['id', 'downloading_percentage_bar'],['class','quickli_options_container_main'], ['style', `width: 0px; height: 50px; border-bottom-right-radius: 0.2em; border-top-right-radius: 0.2em; transition: all 1s;`]]);
+        cont.appendChild(perc);
+        let txt = ele('div');
+        a(txt, [['id', 'downloading_percentage_txt'], ['style', `color: #ffffff; width: ${download_bar_width}px;`]]);
+        perc.appendChild(txt);
+        txt.innerHTML = 'initiating download...';
+    }
+    function updateDownloadBar(obj){
+        const {text,img,iteration,total_results,status} = obj;
+        const body_width = document.body.getBoundingClientRect().width;
+        const download_bar_width = body_width * 0.8;
+        let cont = gi(document,'downloading_notifier');
+        let perc = gi(document,'downloading_percentage_bar');
+        let txt = gi(document,'downloading_percentage_txt');
+        inlineStyler(cont,`{width: ${download_bar_width}px;}`);
+        perc.style.width = `${( download_bar_width * ( iteration / total_results ) )}px`;
+        let img_html = `<img style="justify-content: center; border-radius: 50%; width: ${img ? '45' : '32'}px; height: ${img ? '45' : '32'}px;" src="${img || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAEV0lEQVRoge2aW4hVVRjHf6eZsSyHMJwSa6KQrLFJK8ksxpLsAol0gcKHSqEofKmHHnyJKJIQ6yEoSF8yEKfQh25kkFIJhTXhJWJMu4mCF2oooqKxzH8sWCdWa9Zee++z9zn0sP6wYH9nf+v/ff+9LnuttQ8JCQkJCQkJCQkJCS2hkVVJUquc04Frgcvt9enAOHAM2Ad8CvzQ7uZqNMLSumuMcT1wH3ADMACcFvD524r+ENgEjNQYvxpMCxcsD0g6pNbwnaR7SsQqXEqjAPEcSQdbFOrjG0mzOyG41TG8ClgT+P0UsN2WPcCPwF/AJKAPuAq4FVicwfso8GIdPTRrDGci8vReDrTQCUnPSDq7YAtMk7RG0skA19r/U5d+KZDgsKSeFhObLOmdAOfzJXkattQq+LFAYstrGnMrA9yPlKh/l6RxSW9JelbSUFXBCwIJLa1zkpF0byDGQMG6T3j1VlUVPOIRPlyz2GZ53IuzrWC9jU6dUUlZk2Ihwcu8JDa1SWyzbPXi3Vmgzl7Hf4uk86sI3umQmdl4epsFX+wJ/ijHv1fSr47/akUmrdDyz8U8YIFjvwAcL/30yuGg9y6+EbgiwjATmOLYe2PR8gTf4dkbahBUBK94PksideZ49v4Yf0yw2QBc59i78shqhGmlUYduYYT6Uuf6N9tDWhJsuvOVjv1xh8SG4s2O+Ln3zE7s9xhpTPAsYJpjf52fY634yiG7CDgvg9wd3wfyEogJ9gMc6YzOf+EfEkwN+PTZh9HEaMDnP4gJ7vHsE6XSrY4/c/LBzjNdjv1FXtSY4D88u7eN4kI40/ttPODjj+1v80hjgo969oWFU60HMxwW07vGAqyXOdfHqwo24+GwYw90SGgTc53r74Gfc3z2FSGNCd5t371NLCqaaU1wt3hfZlDOcq4LvUVigk3r7nDsmV4S7cTNQL/Dvz0Qq9/r9rkTVp5gg7c9e2WHBLtxzE5ga8BnrmcX6tKZcHYjb3q7l/lt3i0t8uK9luH3pOc3w71fRfCQRzzSZsH7vXjzMvxed3wO+PerCPbJDda3SeyrXpx1Ed89jt/mugX3SfrFS2Z1zWLXevxH7almyHeqPYxo4qm6BZuyWBOxoSaxwwHuoYh/t6SFkh6U9Iak29oh2JQVgcQO2VPNVoSapI8FOJdVfYh1CTbl/kCCBp9IWiKpKyeZHnuO/FmAY0zSJQVF9UuaUlZwq9+W5gMfAGcF7plF/vt2lTZm18FnAOcCVwO32G/GIawD1lv+hn0Hd9kyDPxk67wL3G53VGYx9PkEYTV+W3LHkT+rVsEpW7IwaOM+Z4eBuX5a0pEyLZy30orhJLDCLjk32i+HVdCI9TgHg8A2aw7bOucUjVvnXx4mA0uBm4BrgAvsHrrbds1WMcnWG7Q7OHNsvBPYYuNtBpZPEJbRpdvxH48meu2Tryq42fKHnVOQu+3Z9XvAQ8FKZcdwQkJCQkJCQkJCQgkA/wBND93iSe1b/QAAAABJRU5ErkJggg=='}"></img>`;
+    txt.innerHTML = `<div style="display: grid; grid-template-columns: 50px 40px 160px ${(download_bar_width - 270)}px; grid-gap: 8px;">${img_html}<div style="transform:translate(0px,15px);">${Math.ceil( ( iteration / total_results ) * 100)}%</div><div style="transform:translate(0px,15px);">complete</div><div style="transform:translate(0px,15px);">${text}</div></div>`;
+        if(status !== true) cont.outerHTML = '';
+        }
+    async function handleImgLinks(){
+      var links = document.getElementById('input_text').value.trim().split(/\n|\s/).map(i=> i.trim()).filter(p=> p);
+      var contain_arr = [];
+      if(links.length){
+        createDownloadHTML();
+        for(i=0; i<links.length; i++){
+          console.log(links[i]);
+          let record_blob = await extractContactDetails(links[i].trim());
+          updateDownloadBar({text:``,img:'',iteration:i,total_results:links.length,status:true});
+          contain_arr.push(record_blob)
+        }
+        updateDownloadBar({text:`complete`,img:'',iteration:links.length,total_results:links.length,status:false});
+      }else{
+        alert('please add some line separated urls.... ');
+      }
+      convertToTSV(contain_arr)
+    }
+
+    async function extractContactDetails(url){
+      return new Promise(res=> {
+        google.script.run.withSuccessHandler(data=> res(data)).processUploadedFileFromClient(url)
+      });
+    }
+    function convertToTSV(fileArray) {
+        var unq = (arr) => arr.filter((e, p, a) => a.indexOf(e) == p);
+        var firstLevel = fileArray.map(el => Object.entries(el));
+        var lens = Math.max(...firstLevel.map(el => el.length));
+        var header = unq(firstLevel.map(el => el.map(itm => itm[0])).flat());
+        var table = [header];
+        var str = (o) => typeof o == 'object' ? JSON.stringify(o).replace(/\n|\r/g, ' ') : o.toString().replace(/\n|\r/g, ' ');
+        for (var i = 0; i < firstLevel.length; i++) {
+          var arr = [];
+          var row = [];
+          for (var s = 0; s < firstLevel[i].length; s++) {
+            var place = header.indexOf(firstLevel[i][s][0]);
+            arr[place] = firstLevel[i][s][1];
+          }
+          for (var a = 0; a < arr.length; a++) {
+            if (arr[a]) {
+              row.push(arr[a]);
+            } else {
+              row.push('');
+            }
+          }
+          table.push(row);
+        }
+      
+        function downloadr(arr2D, filename) {
+          var data = /\.json$|.js$/.test(filename) ? JSON.stringify(arr2D) : arr2D.map(el => el.reduce((a, b) => a + '\t' + b)).reduce((a, b) => a + '\r' + b);
+          var type = /\.json$|.js$/.test(filename) ? 'data:application/json;charset=utf-8,' : 'data:text/plain;charset=utf-8,';
+          var file = new Blob([data], {
+            type: type
+          });
+          if (window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveOrOpenBlob(file, filename);
+          } else {
+            var a = document.createElement('a'),
+              url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            }, 10);
+          }
+        }
+        var output = table.map(el => el.map(itm => str(itm)));
+        downloadr(output, 'OCR conversion.tsv');
+      }
+
+
+    function setQuickliCSS(style_id){
+      if(gi(document,`${style_id}_style`)) gi(document,`${style_id}_style`).outerHTML = '';
+      let csselm = ele('style');
+      a(csselm,[['class',`${style_id}_style`]]);
+      document.head.appendChild(csselm);
+      csselm.innerHTML = `
+        body {
+          width: 400px;
+          max-height: 500px;
+          background: #1f1f23;
+          color:#ffffff;
+        }
+        .pad2 {
+          padding: 2px;
+        }
+        .pad4 {
+          padding: 4px;
+        }
+        .pad6 {
+          padding: 6px;
+        }
+        .pad8 {
+          padding: 8px;
+        }
+        .pad12 {
+          padding: 12px;
+        }
+        .centertext {
+          text-align: center;
+        }
+        .pointer {
+          cursor: pointer;
+        }
+        .btn_shadow_1 {
+            box-shadow: rgba(0, 0, 0, 0.1) 1px 1px 2px 1px;
+            cursor: pointer;
+            color: #FFFFFF;
+            border-radius: 0.4em;
+            border: 1px solid #0b1929;
+            transition: all 111ms;
+            user-select: none;
+            transition: all 333ms;
+        }
+        .btn_shadow_1:hover {
+            border-radius: 2em;
+            background-color: #0b1929;
+            box-shadow: rgba(27, 59, 97, 0.48) 1px 1px 1px 0px, rgba(27, 59, 97, 0.8) -1px -1px 0px -0px;
+        }
+        .btn_shadow_1:active {
+            border-radius: 2em;
+            background-color: #08131f;
+            box-shadow:
+              -1px -0px 1px 0px #040b12,
+              1px 0px 1px 0px rgb(3, 8, 13),
+              1px 1px 1px 0px rgb(3, 8, 13) inset,
+              -1px -1px 4px 0px #040b12 inset;
+        }
+        .dark_btn_1 {
+          box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px;
+          cursor: pointer;
+          background: #0e0e0e;
+          color: #FFFFFF;
+          border-radius: 2em;
+          transition: all 111ms;
+          user-select: none;
+        }
+        .dark_btn_1:hover {
+          box-shadow: rgba(2, 36, 38, 0.48) 1px 1px 1px 0px, rgba(2, 29, 31, 0.8) -2px -2px 0px -0px;
+        }
+        .dark_btn_1:active {
+          box-shadow:
+            -2px -1px 2px 0px #26262c,
+            2px 1px 2px 0px rgb(2, 29, 31),
+            1px 1px 1px 0px rgb(2, 29, 31) inset,
+            -1px -1px 4px 0px #171c21 inset;
+        }
+        .textarea {
+          outline: none;
+          border-radius: 0.4em;
+          border: 0px;
+          background: #33363a;
+          box-shadow: rgba(32, 124, 245, 0.5) 1px 0px 2px 1px inset, rgba(32, 124, 245, 0.5) -1px -0px 2px 1px inset;
+          transition: all 333ms;
+          text-align: center;
+          padding: 12px;
+          text-align: left;
+          color: #ffffff;
+        }
+        .textarea:focus {
+          box-shadow: rgb(32, 124, 245) 2px 2px 3px 1px inset, rgba(32, 124, 245, 0.5) -2px -1px 2px 1px inset;
+          background: #25282d;
+          text-align: left;
+        }
+        .justify_center {
+          margin-bottom: auto;
+          margin-top: auto;
+          margin-left: auto;
+          margin-right: auto;
+          display: flex;
+          justify-content: center;
+        }
+        .header_options_cont {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-gap: 8px;
+        }
+        .quickli_options_container_main {
+          background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23a6d5, #23d5ab);
+          background-size: 400% 400%;
+          animation: gradient_quickli 3s ease infinite;
+        }
+        @keyframes gradient_quickli {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    `;
+		}
+    setQuickliCSS('ocr_styles');
+
+    function buildContainer(){
+        if(cn(document,'url_upload_card')) Array.from(cn(document,'url_upload_card')).forEach(r=> { r.outerHTML = ''; });
+        const cont = ele('div');
+        a(cont,[['class','url_upload_card'],['id','url_upload_card_id']]);
+    
+        let shadow = 'box-shadow: rgba(0, 0, 0, 0.07) 0px 1px 2px, rgba(0, 0, 0, 0.07) 0px 2px 4px, rgba(0, 0, 0, 0.07) 0px 4px 8px, rgba(0, 0, 0, 0.07) 0px 8px 16px, rgba(0, 0, 0, 0.07) 0px 16px 32px, rgba(0, 0, 0, 0.07) 0px 32px 64px;';
+    
+        inlineStyler(cont,`{display: grid; grid-template-columns: 32px 1fr; grid-gap: 0px; ${shadow} text-align: left; height: 500px; width: 700px; background: #26262c; color: #ffffff; border-radius: 1em; transition: all 111ms; position: fixed; z-index: ${topZIndexer()}; top: 50px; left: 50}`);
+        document.body.appendChild(cont);
+        
+        const panel = ele('div');
+        a(panel,[['id','right_cont_panel'],['class','mover-gradient']]);
+        inlineStyler(panel,`{display: grid; grid-template-rows: 30px 440px; grid-gap: 12px; user-select: none;}`);
+        cont.appendChild(panel);
+    
+        const cls = ele('div');
+        panel.appendChild(cls);
+        a(cls,[['style','margin-bottom: auto; margin-top: auto; margin-left: auto; margin-right: auto; display: flex; justify-content: center;'],['class','dark_btn_1 h32']]);
+        cls.innerHTML = `<svg style="border-radius: 2em; height: 30px; width: 30px;" x="0px" y="0px" viewBox="0 0 100 100"><g style="transform: scale(1, 1)" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(2, 2)" stroke="#e21212" stroke-width="8"><path d="M47.806834,19.6743435 L47.806834,77.2743435" transform="translate(49, 50) rotate(225) translate(-49, -50) "/><path d="M76.6237986,48.48 L19.0237986,48.48" transform="translate(49, 50) rotate(225) translate(-49, -50) "/></g></g></svg>`;
+        cls.onclick = () => cont.outerHTML = '';
+
+        const mover = ele('div');
+        inlineStyler(mover,`{cursor: move; user-select: none;}`);
+        panel.appendChild(mover);
+        mover.onmouseover = dragElement;
+    
+        const right = ele('div');
+        a(right,[['id','right_cont_panel']])
+        inlineStyler(right,`{padding: 0px; display: grid; grid-template-rows: 60px 1fr; grid-gap: 8px;}`);
+        cont.appendChild(right);
+    
+        var head_desc = ele('div');
+        a(head_desc,[['id','main_info_header'],['class','mover-gradient-head']]);
+        inlineStyler(head_desc,`{height: 60px;}`);
+        right.appendChild(head_desc);
+        head_desc.onmouseover = dragElement;
+
+        let textarea = ele('textarea');
+        right.appendChild(textarea);
+        a(textarea,[['id','input_text'],['class','textarea'],['placeholder','Drop your LINE SEPARATOR image URLs here.']]);
+
+        let btn = ele('div');
+        a(btn,[['class','btn_shadow_1 centertext pad12'],['id','submit_btn']]);
+        btn.innerText = 'Start Conversion';
+        btn.onclick = handleImgLinks;
+        right.appendChild(btn);
+
+        return {cont: cont, header: head_desc, right: right, left: panel};
+    }
+    buildContainer();
+}
+
+</script>
+
